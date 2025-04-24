@@ -1,0 +1,130 @@
+---
+title: "Data Analysis"
+output: html_document
+date: "2025-04-17"
+---
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(dunn.test)
+```
+
+T-tests compare the variation of a continuous variable across two levels of a categorical (nominal and ordinal) variable.
+```{r}
+#3b: Does PFG differ based on Gender? What is the null hypothesis? What is the alternative hypothesis?
+#null hypothesis = Gender does not affect PFG
+#alternative hypothesis = Gender affects PFG 
+#1. Find the descriptive statistics (mean, sd, and counts) of PFG by Gender.
+NHANES2017_18%>%
+  drop_na(A1CLevel)%>%
+  group_by(Gender)%>%
+  summarize(mean(A1CLevel), sd(A1CLevel), count=n())
+#2. Run a test to see if the variances of the continuous variable are equal across different levels of the categorical variable:
+#var.test(Contvar~Catvar, data=, alternative="two.sided")
+var.test(A1CLevel~Gender, data=NHANES2017_18, alternative="two.sided")
+#3. We will run the T-test with the following code:
+#t.test(Contvar~Catvar, var.equal=FALSE, data=)
+t.test(A1CLevel~Gender, var.equal=TRUE, data=NHANES2017_18)
+ggplot(NHANES2017_18, aes (x = A1CLevel, y = Gender)) + geom_boxplot(fill = "lavender") + labs(x = "A1C Level", y = "Gender", title = "Mean A1C Level by Gender")
+```
+The mean A1C Level of Males versus Females is not significantly different. Not expected.
+
+Chi-Squared (categorical variables)
+proportion of respondents versus population
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+3. Let's examine the relationship between PFGcat and Race:
+```{r}
+#table_name <- xtabs(~ CatVar1 + CatVar2, data=)
+#print the table
+#show the table in percentages: prop.table(table_name)*100
+A1Ccat_Race_table <- xtabs(~ A1Ccat + Race, data=NHANES2017_18)
+A1Ccat_Race_table
+prop.table(A1Ccat_Race_table)*100
+#b. run the chi-square test:
+#chisq.test(table_name)
+chisq.test(A1Ccat_Race_table)
+#barplot 
+ggplot(NHANES2017_18, aes(x = A1Ccat, fill = Race)) + geom_bar(position = "dodge") + labs(title = "A1C Categories by Race", x = "A1C Categories", y = "A1C Level")
+```
+there is not  a significant relationship betwen A1C level and Race. not expected.
+
+Linear regression model -- what is the most important factor influencing diabetes
+predict the outcome of a continuous dependent variable from a continuous independent variable.
+can we predict BMI from A1C
+```{r}
+#model_name <- lm(DepVar~IndVar, data=)
+A1C_BMI_LRM <- lm (A1CLevel~BMI, data = NHANES2017_18)
+#summary(model_name)
+summary(A1C_BMI_LRM)
+ggplot(NHANES2017_18, aes(x = BMI, y = A1CLevel)) + geom_point(color = "pink") +
+  geom_smooth(method = "lm", se=FALSE, color = "skyblue") + geom_smooth(method = "loess", se = FALSE, color = "purple", linetype = "dashed") + labs(title = "BMI by A1C", x = "BMI", y = "A1C")
+```
+there is not a significant relationship between BMI and A1C level. not expected
+
+Correlation test
+A1C & PFG = should have a positive association
+```{r}
+library(ggpubr)
+```
+
+```{r}
+#scatter plot code: #ggplot(aes(x=DepVar, y=IndVar), data=) + geom_point(color="") + geom_smooth(method=lm, color="") + labs(x="", y="") + theme_bw()
+NHANES2017_18 %>% ggplot(aes(x=A1CLevel, y=PFG)) + geom_point(color="skyblue") + geom_smooth(method=lm, color="pink") + labs(x="A1C Level", y="Plasma Fasting Glucose") + theme_bw()
+#correlation test code: cor.test(data$DepVar, data$IndVar, method="pearson")
+cor.test(NHANES2017_18$A1CLevel, NHANES2017_18$PFG, method="pearson")
+```
+there is a significant relationship between PFG and A1C. This was expected.
+
+
+K-W test: shows if there is a significant difference in the means and variance of a continuous variable across three or more categorical levels when the continuous variable is not normally distributed
+Dunn test:identifies the specific bivariate comparisons that significantly differ from each other
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(dunn.test)
+```
+
+```{r}
+#4a. Does PFG differ by HHIncome? What is the null hypothesis? What is the alternative hypothesis?
+#1. Generate summary statistics of PFG by HHIncome?
+#NHANESdata%>%
+  #drop_na(HHIncome)%>%
+  #summarize(mean(HHIncome), sd(HHIncome), count=n())
+#2. Generate a boxplot of PFG by HHIncome to visualize the summary statistics
+ggplot(NHANES2017_18, aes(x=HHIncome, y=A1CLevel)) +
+  geom_boxplot(fill="lavender") +
+  labs(x="Household Income",
+       y="A1C Level",
+       title = "A1C Level by Household Income")
+#3. Run the Kruskal-Wallis test and the post-hoc Dunn test to see if there are any significant differences in PFG by HHIncome. The code for the Kruskal-Wallis and Dunn test is: dunn.test(x=data$contvar, g=data$catvar, kw=TRUE)
+dunn.test(x=NHANES2017_18$A1CLevel, g=NHANES2017_18$HHIncome, kw=TRUE)
+```
+There is not a significant relationship between A1C and Household Income
+
+
+
+Odds Ratio
+Odds of having Diabetes with health insurance versus without
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(epitools)
+library(ggmosaic)
+```
+
+
+```{r}
+A1Ccat_HealthCover_odds_table <- table(NHANES2017_18$A1Ccat, NHANES2017_18$HealthCovered)
+A1Ccat_HealthCover_odds_table
+oddsratio(A1Ccat_HealthCover_odds_table)
+ggplot(data=NHANES2017_18) + geom_mosaic(aes(x=product(A1Ccat), fill=HealthCovered), na.rm=TRUE, show.legend=FALSE) + labs(title="A1C Cacategories by Health Insurance Coverage", x="A1C Categories", y="Health Insurance Coverage")
+```
+No statistically significant relationship between A1C level and Health Insurance Coverage. not expacted.
+
